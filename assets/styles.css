@@ -1,0 +1,77 @@
+/* styles.css */
+
+#menu {
+    font-family: "Georama Light";
+    background-color: black;
+    border-radius: 10px;    
+}
+
+#main_frame {
+    background-color: #2c2c2c;
+}
+
+#rogers_pricing_label {  
+    font-family: "Georama Light"; 
+    font-size: 13pt;
+    font-weight: bold;
+    color: white;
+    max-width: 250px;        
+}
+
+#rogers_path_label {
+    font-family: "Georama Light";
+    color: white;
+    font-size: 8pt;
+}
+
+#rogers_pricing_button {    
+    font-family: "Georama Light";
+    color: red;
+    background-color: black;
+    max-width: 45px;
+    max-height: 20px;
+    border-radius: 5px;
+}
+
+#rq_pricing_label {
+    font-family: "Georama Light"; 
+    font-size: 13pt;
+    font-weight: bold;
+    color: white;
+    max-width: 250px;  
+}
+
+#rq_pricing_button {
+    font-family: "Georama Light";
+    color: red;
+    background-color: black;
+    max-width: 45px;
+    max-height: 20px;
+    border-radius: 5px;
+}
+
+#rq_path_label {
+    font-family: "Georama Light";
+    color: white;
+    font-size: 8pt;
+}
+
+#run_button {
+    font-family: "Georama Light";
+    color: red;
+    background-color: black;
+    border-radius: 5px;
+}
+
+
+#menu_widget {
+    border: 1px solid red;
+}
+
+#main_layout {
+    border: 1px solid red;
+}
+
+#rogers_pricing_layout {
+    border: 1px solid red;
+}
