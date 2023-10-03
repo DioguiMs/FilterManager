@@ -6,6 +6,8 @@ import openpyxl
 import re
 from PyQt5.QtWidgets import QFileDialog
 from PyQt5.QtWidgets import QPushButton
+from openpyxl.utils import exceptions
+
 
 #### File dialog
 
@@ -73,7 +75,7 @@ class PriceFilter(QPushButton):
         except FileNotFoundError:
             print("File not found. Please check the file path.")
         
-        except openpyxl.utils.exceptions.InvalidFileException:
+        except exceptions.InvalidFileException:
             print("Invalid file format. Please make sure the file is in a supported format (e.g., .xlsx, .xlsm).")
             
         except Exception as e:
@@ -116,6 +118,7 @@ class PriceFilter(QPushButton):
                 for row in rogers_sheet.iter_rows(min_row=sku_row+1, min_col=sku_column ,max_col=sku_column):
                     for cell in row:
                         sku_number = cell.value
+                        device_cords = [cell.row, cell.column]
                         
                         # First run to encounter the correct column
                         if rq_column is None:
@@ -123,11 +126,12 @@ class PriceFilter(QPushButton):
                                 for cell in row:
                                     if str(cell.value).lower() == str(sku_number).lower():
                                         print("SKU was found in the RQ sheet, copying it's values....")
+                                        
                                         rq_sku_cords = [cell.row, cell.column]
 
                                         if headers is None:
-                                            headers, rebate_headers, tablet_headers, watch_headers, RPP_headers = headers_list()
-                                        #copy(sku_cords, rq_sku_cords, headers)
+                                            headers, rebate_headers, ranges, RPP_headers, watch_headers, tablet_headers = headers_list()
+                                        copy(device_cords, rq_sku_cords, headers, rebate_headers, ranges, RPP_headers, watch_headers, tablet_headers, sku_number)
                                         
                                         if len(headers) < 4:
                                             print("Error the amount of pattern founds were less than expected, The values found were:")
@@ -151,8 +155,8 @@ class PriceFilter(QPushButton):
                                         rq_sku_cords = [cell.row, cell.column]
 
                                         if headers is None:
-                                            headers, rebate_headers, tablet_headers, watch_headers, RPP_headers = headers_list()
-                                        #copy(sku_cords, rq_sku_cords, headers, rebate_headers, tablet_headers, watch_headers, RPP_headers)
+                                            headers, rebate_headers, ranges, RPP_headers, watch_headers, tablet_headers = headers_list()
+                                        copy(device_cords, rq_sku_cords, headers, rebate_headers, ranges, RPP_headers, watch_headers, tablet_headers, sku_number)
                             
                                     
                     
@@ -160,7 +164,7 @@ class PriceFilter(QPushButton):
        
 def headers_list():
     
-    rogers_sheet_rows = list(rogers_sheet.iter_rows())
+    ### Rogers Pricing sheet headers
     
     patterns = [
         (r'^MSRP$', "MSRP"), # MSRP #1 of the list [0]
@@ -192,6 +196,65 @@ def headers_list():
     print(f"RPP Financing coords are row: {headers[1].row}, column: {headers[1].column_letter}")
     print(f"RPP Talk and Text Financing coords are row: {headers[2].row}, column: {headers[2].column_letter}")
     print(f"RPP Data Only Financing coords are row: {headers[3].row}, column: {headers[3].column_letter}")
+    
+    
+    # Rogers Pricing sheet Ranges
+    
+    patterns = [
+        (r'^upfront.*edge$'),        # Upfront edge pattern
+        (r'^Discount.*Duration$')   # Discount duration pattern
+    ]
+    
+    device_pricing_range = []
+    talktext_pricing_range = []
+    tablet_pricing_range = []
+    
+    
+    UpfrontEdgeSearch = re.compile(patterns[0], re.IGNORECASE)
+    DiscountDuration = re.compile(patterns[1], re.IGNORECASE)
+    
+    
+    total = 0
+    for row in rogers_sheet.iter_rows(min_col=headers[1].column, min_row=headers[1].row):
+        for cell in row:
+            if cell.value is not None and UpfrontEdgeSearch.search((str(cell.value))):
+                
+                device_pricing_range.append(cell)
+                total += 1
+                if total == 2: break
+            
+        if total == 2: break
+    
+    stop = False
+    for row in rogers_sheet.iter_rows(min_col=headers[2].column, min_row=headers[2].row):
+        for cell in row:
+            if cell.value is not None and DiscountDuration.search((str(cell.value))):
+                
+                talktext_pricing_range.append(cell)
+                stop = True
+                break
+            
+        if stop == True: break
+    
+    stop= False
+    for row in rogers_sheet.iter_rows(min_col=headers[3].column, min_row=headers[3].row):
+        for cell in row:
+            if cell.value is not None and DiscountDuration.search((str(cell.value))):
+                
+                tablet_pricing_range.append(cell)
+                stop = True
+                break
+            
+        if stop == True: break
+        
+    ranges = [
+        device_pricing_range,
+        talktext_pricing_range,
+        tablet_pricing_range        
+    ]
+    
+    
+    ################# RQ Headers
 
     
     patterns = [
@@ -207,6 +270,7 @@ def headers_list():
     tablet_headers = []
     watch_headers = []
     RPP_headers = []
+    
     tablet_rebate_headers = []
     watch_rebate_headers = []
     RPP_rebate_headers = []
@@ -259,9 +323,90 @@ def headers_list():
                     
                 
                     
-    return headers, rebate_headers, tablet_headers, watch_headers, RPP_headers
+    return headers, rebate_headers, ranges, RPP_headers, watch_headers, tablet_headers
 
 
 
 
-#def copy(sku_cords, rq_sku_cords, headers, rebate_headers, tablet_headers, watch_headers, RPP_headers)
+def copy(device_cords, rq_sku_cords, headers, rebate_headers, ranges, RPP_headers, watch_headers, tablet_headers, sku_number):
+    
+    # headers:
+    #    (r'^MSRP$', "MSRP"), # MSRP #1 of the list [0]
+    #    (r'RPP\s*\W\s*FINANCING', "RPP Financing"), # RPP - Financing is #2 of the list [1]
+    #    (r'RPP(?:.*)Talk(?:.*)Text(?:.*)Financing', "RPP Talk and Text Financing"), # RPP Talk and Text is #3 of the list [2]
+    #    (r'RPP(?:.*)DATA(?:.*)ONLY(?:.*)FINANCING', "RPP Data Only Financing") # RPP Data Only Financing is #4 of the list [3]
+    
+    # rebate_headers = [RPP_rebate_headers, tablet_rebate_headers, watch_rebate_headers]
+    
+    # ranges = [device_pricing_range, talktext_pricing_range, tablet_pricing_range]
+    
+    pattern = r'^aw.+'
+    
+    pattern_ignore_case = re.compile(pattern, re.IGNORECASE)
+    
+    watch = False
+    if pattern_ignore_case.search((str(sku_number))):
+        watch = True
+    
+    
+    
+    msrp  = rogers_sheet.cell(row=device_cords[0], column=headers[0].column).value
+
+    def range_check(row_range, column_range):
+        
+        value = 0        
+        for row in rogers_sheet.iter_rows(min_row=row_range[0], max_row=row_range[1], min_col=column_range[0], max_col=column_range[1]):
+            for cell in row:
+                if cell.value not in [None, '', '-']:
+                    print('cell has a value: ', cell.value)
+                    value += 1
+
+                elif cell.value == '-':
+                    print('cell has no value')
+
+                else:
+                    print('unknown')
+                    
+        return value
+    
+    
+    def transpose(value, main, rebate):
+        
+        if value > 0:
+            for cell in main:
+                rq_sheet.cell(row=rq_sku_cords[0], column=cell.column).value = float(msrp)
+
+            for cell in rebate:
+                rq_sheet.cell(row=rq_sku_cords[0], column=cell.column).value = int(0)
+
+        else:
+            for cell in main:
+                rq_sheet.cell(row=rq_sku_cords[0], column=cell.column).value = str('N')
+
+            for cell in rebate:
+                rq_sheet.cell(row=rq_sku_cords[0], column=cell.column).value = str('N')
+    
+    #### National RPP financing
+    
+    row_range = [device_cords[0], device_cords[0]]
+    column_range = [headers[1].column, ranges[0][0].column]
+    
+    value = range_check(row_range, column_range)
+    transpose(value, RPP_headers, rebate_headers[0])
+    value = 0
+    
+    ##### Data Only discovery
+    
+    column_range = [headers[3].column, ranges[2].column]
+    value = range_check(row_range, column_range)
+    
+    
+    #### Watch financing
+    
+    if watch is True:
+        transpose(value, watch_headers, rebate_headers[2])
+        transpose(0, tablet_headers, rebate_headers[1])
+        
+    if watch is False:
+        transpose(value, tablet_headers, rebate_headers[1])
+        transpose(0, watch_headers, rebate_headers[2])
