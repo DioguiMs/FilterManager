@@ -1,13 +1,13 @@
 /* styles.css */
 
+
 #menu_widget {
-    font-family: "Georama Light";
-    background-color: #332e2e;
-    border-radius: 10px;    
+    background-color: #1f1f20;
 }
 
 #main_frame {
-    background-color: #313135;
+    background-color: #303030;
+    border-radius: 5px;
 }
 
 #rogers_pricing_label {  
@@ -61,11 +61,7 @@
     color: red;
     background-color: black;
     border-radius: 5px;
-}
 
-
-#menu_widget {
-    border: 1px solid red;
 }
 
 #main_layout {
