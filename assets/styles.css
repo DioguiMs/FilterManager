@@ -1,13 +1,13 @@
 /* styles.css */
 
-#menu {
+#menu_widget {
     font-family: "Georama Light";
-    background-color: black;
+    background-color: #332e2e;
     border-radius: 10px;    
 }
 
 #main_frame {
-    background-color: #2c2c2c;
+    background-color: #313135;
 }
 
 #rogers_pricing_label {  
