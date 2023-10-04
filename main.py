@@ -18,7 +18,7 @@ if __name__ == "__main__":
         
     css_file = QFile(":/styles/assets/styles.css")
         
-    if css_file.open(QFile.ReadOnly | QFile.Text):
+    if css_file.open(QFile.ReadOnly | QFile.Text): # type: ignore
         stream = QTextStream(css_file)
         app.setStyleSheet(stream.readAll())
     
