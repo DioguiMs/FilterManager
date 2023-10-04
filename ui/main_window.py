@@ -1,7 +1,7 @@
 # ui.main_window.py
 from PyQt5.QtWidgets import QMainWindow, QVBoxLayout, QPushButton, QLabel, QWidget, QHBoxLayout, QFileDialog
 from PyQt5.QtCore import Qt, QResource, QFile, QTextStream
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QPixmap, QIcon
 from PyQt5 import QtWidgets, QtCore
 from ui.animated_button import AnimatedButton, RunAnimatedButton
 from ui.logic import PriceFilter, open_dialog
@@ -18,9 +18,7 @@ class MainWindow(QMainWindow):
         global rogers_file_path 
         global rq_file_path
         
-        self.setWindowTitle("File Selection App")
-        self.setFixedSize(430, 558)
-        
+        self.setWindowTitle("FilterManager.exe")
         self.setObjectName("menu")
         self.setFixedSize(430, 558)
         self.menu_widget = QtWidgets.QWidget(self)
@@ -178,29 +176,47 @@ class MainWindow(QMainWindow):
         #######################     Run Layout Scheme       ###########################
         
         self.verticalLayoutWidget_2 = QtWidgets.QWidget(self.main_frame)
-        self.verticalLayoutWidget_2.setGeometry(QtCore.QRect(100, 240, 141, 71))
+        self.verticalLayoutWidget_2.setGeometry(QtCore.QRect(110, 210, 120, 50))
         self.verticalLayoutWidget_2.setObjectName("verticalLayoutWidget_2")
         self.run_layout = QtWidgets.QVBoxLayout(self.verticalLayoutWidget_2)
         self.run_layout.setContentsMargins(0, 0, 0, 0)
         self.run_layout.setObjectName("run_layout")
         
         self.run_button = RunAnimatedButton(self.verticalLayoutWidget_2)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHeightForWidth(self.rq_pricing_button.sizePolicy().hasHeightForWidth())
         self.rq_pricing_button.setSizePolicy(sizePolicy)   
         self.run_button.setObjectName("run_button")
         self.run_button.setText("Run")
+        self.run_button.setFixedHeight(50)
         self.run_layout.addWidget(self.run_button)
 
         QtCore.QMetaObject.connectSlotsByName(self)
         
         ####################################################################################
         
+########################### Imagine Wireless icon
+
+        self.label = QtWidgets.QLabel(self.menu_widget)
+        self.label.setGeometry(QtCore.QRect(0, 20, 171, 71))
+        self.label.setText("")
+        self.label.setPixmap(QPixmap(":/styles/assets/bin/Imagine Wireless (Dark Mode).png"))
+        self.label.setScaledContents(True)
+        self.label.setObjectName("label")
+        
+########################### Window icon
+
+        self.setWindowIcon(QIcon(":/styles/assets/bin/icon.png"))
+        
+        
+        
+        
+        
+        
+        
         ###################### Button actions ########################
 
-                     
+
         #### Rogers button action
         
         self.rogers_pricing_button.clicked.connect(lambda: self.open_file_dialog("rogers", self.rq_pricing_button, self.rogers_path_label, self.rq_path_label))        
