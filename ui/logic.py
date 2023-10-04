@@ -1,7 +1,9 @@
 # logic.py
 
+from ast import Str
 import os
 import sys
+from types import new_class
 import openpyxl
 import re
 from PyQt5.QtWidgets import QFileDialog
@@ -28,7 +30,7 @@ def open_dialog(self, button_name, button, file_filter, rogers_path_label, rq_pa
         print("Rogers file path:", rogers_file_path)
         print("Rogers file name:", rogers_file_name)
         rogers_path_label.setText("File selected: " + file_name)      
-             
+
         
     elif button_name == "rq":
         
@@ -66,6 +68,10 @@ class PriceFilter(QPushButton):
     def filter_function(self):
         
         files = False
+        
+        rogers_workbook = None
+        rq_workbook = None
+        
         try:            
             rogers_workbook = openpyxl.load_workbook(rogers_file_path)
             rq_workbook = openpyxl.load_workbook(rq_file_path)
@@ -81,7 +87,7 @@ class PriceFilter(QPushButton):
         except Exception as e:
             print("An error occurred while loading the workbook:", str(e))
             
-        if files is True:
+        if files is True and rogers_workbook is not None and rq_workbook is not None:
             
             pattern = r'^SKU$'
             ignore_pattern_case = re.compile(pattern, re.IGNORECASE)
@@ -114,17 +120,29 @@ class PriceFilter(QPushButton):
                 sku_column = sku_cords[1]
                 rq_column = None
                 headers = None
+                rebate_headers = None
+                ranges = None
+                RPP_headers = None
+                watch_headers = None
+                tablet_headers = None
+                
+                pattern = r'(.*)(NRS$)'
+                ignore_pattern_case = re.compile(pattern, re.IGNORECASE)
+                
                 
                 for row in rogers_sheet.iter_rows(min_row=sku_row+1, min_col=sku_column ,max_col=sku_column):
                     for cell in row:
                         sku_number = cell.value
-                        device_cords = [cell.row, cell.column]
+                        device_cords = [cell.row, cell.column]    
                         
                         # First run to encounter the correct column
-                        if rq_column is None:
+                        if rq_column is None and sku_number is not None:
                             for row in rq_sheet.iter_rows():
                                 for cell in row:
-                                    if str(cell.value).lower() == str(sku_number).lower():
+                                    
+                                    rq_sku = cell.value
+                                    
+                                    if str(rq_sku).lower() == str(sku_number).lower():
                                         print("SKU was found in the RQ sheet, copying it's values....")
                                         
                                         rq_sku_cords = [cell.row, cell.column]
@@ -146,22 +164,48 @@ class PriceFilter(QPushButton):
                                 if rq_column is not None: break
                         
                         # Rest of the runs once the column was found        
-                        if rq_column is not None:
-                            
+                        if rq_column is not None and sku_number is not None:
                             for row in rq_sheet.iter_rows(min_col=rq_column, max_col=rq_column):
                                 for cell in row:
-                                    if str(cell.value).lower() == str(sku_number).lower():
+                                    
+                                    rq_sku = cell.value
+                                    
+                                    if ignore_pattern_case.match(str(rq_sku)):
+                                        matches = re.findall(pattern, str(rq_sku), re.IGNORECASE)
+                                        
+                                        rq_sku = matches[0][0] # type: ignore
+                                    
+                                    
+                                    if str(rq_sku).lower() == str(sku_number).lower():
                                         print("SKU was found in the RQ sheet, copying it's values....")
                                         rq_sku_cords = [cell.row, cell.column]
 
                                         if headers is None:
                                             headers, rebate_headers, ranges, RPP_headers, watch_headers, tablet_headers = headers_list()
                                         copy(device_cords, rq_sku_cords, headers, rebate_headers, ranges, RPP_headers, watch_headers, tablet_headers, sku_number)
-                            
-                                    
+                
+                
+                ############## Save File dialog
+                
+                save_dialog = QFileDialog()
+                save_dialog.setDefaultSuffix(".xlsx")
+                save_dialog.setNameFilters(["Excel files (*.xlsx)"])
+                
+                file_name = os.path.basename(rq_file_path)
+                
+                save_dialog.selectFile(file_name)
+                
+                save_path, _ = save_dialog.getSaveFileName(None, "Save File", "", "Excel files (*.xlsx)")
+                
+                if save_path:
                     
-       
-       
+                    rq_workbook.save(save_path)
+                    ("File saved successfully!")
+                    
+                else:
+                    print("File save canceled")
+
+
 def headers_list():
     
     ### Rogers Pricing sheet headers
@@ -288,7 +332,7 @@ def headers_list():
                 header_row = cell.row
                 
                 if rebate_search.search((str(cell.value))):
-                   
+
                     rebate_headers[1].append(cell)                    
                     
                 else: 
@@ -370,21 +414,29 @@ def copy(device_cords, rq_sku_cords, headers, rebate_headers, ranges, RPP_header
         return value
     
     
-    def transpose(value, main, rebate):
+    def transpose(value, main, rebate, msrp):
         
         if value > 0:
             for cell in main:
-                rq_sheet.cell(row=rq_sku_cords[0], column=cell.column).value = float(msrp)
+                edited_cell = rq_sheet.cell(row=rq_sku_cords[0], column=cell.column)
+                edited_cell.value = float(msrp)
+                #rq_sheet.cell(row=rq_sku_cords[0], column=cell.column).value = float(msrp)
 
             for cell in rebate:
-                rq_sheet.cell(row=rq_sku_cords[0], column=cell.column).value = int(0)
+                edited_cell = rq_sheet.cell(row=rq_sku_cords[0], column=cell.column)
+                edited_cell.value = int(0)
+                #rq_sheet.cell(row=rq_sku_cords[0], column=cell.column).value = int(0)
 
         else:
             for cell in main:
-                rq_sheet.cell(row=rq_sku_cords[0], column=cell.column).value = str('N')
+                edited_cell = rq_sheet.cell(row=rq_sku_cords[0], column=cell.column)
+                edited_cell.value = str("N")
+                #rq_sheet.cell(row=rq_sku_cords[0], column=cell.column).value = str('N')
 
             for cell in rebate:
-                rq_sheet.cell(row=rq_sku_cords[0], column=cell.column).value = str('N')
+                edited_cell = rq_sheet.cell(row=rq_sku_cords[0], column=cell.column)
+                edited_cell.value = str("N")
+                #rq_sheet.cell(row=rq_sku_cords[0], column=cell.column).value = str('N')
     
     #### National RPP financing
     
@@ -392,21 +444,21 @@ def copy(device_cords, rq_sku_cords, headers, rebate_headers, ranges, RPP_header
     column_range = [headers[1].column, ranges[0][0].column]
     
     value = range_check(row_range, column_range)
-    transpose(value, RPP_headers, rebate_headers[0])
+    transpose(value, RPP_headers, rebate_headers[0], msrp)
     value = 0
     
     ##### Data Only discovery
     
-    column_range = [headers[3].column, ranges[2].column]
+    column_range = [headers[3].column, ranges[2][0].column]
     value = range_check(row_range, column_range)
     
     
     #### Watch financing
     
     if watch is True:
-        transpose(value, watch_headers, rebate_headers[2])
-        transpose(0, tablet_headers, rebate_headers[1])
+        transpose(value, watch_headers, rebate_headers[2], msrp)
+        transpose(0, tablet_headers, rebate_headers[1], msrp)
         
     if watch is False:
-        transpose(value, tablet_headers, rebate_headers[1])
-        transpose(0, watch_headers, rebate_headers[2])
+        transpose(value, tablet_headers, rebate_headers[1], msrp)
+        transpose(0, watch_headers, rebate_headers[2], msrp)
